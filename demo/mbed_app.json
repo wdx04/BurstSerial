@@ -1,0 +1,32 @@
+{
+    "artifact_name": "thermo",
+    "requires": [ "bare-metal", "events" ],
+    "target_overrides": {
+        "*": {
+            "platform.default-serial-baud-rate": 921600,
+            "platform.stdio-baud-rate": 921600,
+            "platform.heap-stats-enabled": false,
+            "platform.stack-stats-enabled": false,
+            "target.c_lib": "small",
+            "target.printf_lib": "minimal-printf",
+            "target.console-uart": true,
+            "events.shared-dispatch-from-application": true
+        },
+        "STM32G071RB": {
+            "target.stdio_uart_tx": "PC_10",
+            "target.stdio_uart_rx": "PC_11"
+        },
+        "STM32G030C8": {
+            "target.stdio_uart_tx": "PA_2",
+            "target.stdio_uart_rx": "PA_3"
+        },
+        "NUCLEO_L4R5ZI": {
+            "target.clock_source": "USE_PLL_HSE_EXTC|USE_PLL_MSI",
+            "target.hse_value": "8000000"
+        },
+        "NUCLEO_U545RE_Q": {
+            "target.stdio_uart_tx": "PA_2_ALT0",
+            "target.stdio_uart_rx": "PA_3_ALT0"
+        }
+    }
+}

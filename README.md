@@ -24,7 +24,7 @@ void serial_callback(bool is_idle)
     // check for end of message
     if(rx_pos > 0 && buffer[rx_pos - 1] == '\n')
     {
-        serial.dma_write((uint8_t*)buffer, rx_pos);
+        serial.write((uint8_t*)buffer, rx_pos);
         rx_pos = 0;
     }
 }

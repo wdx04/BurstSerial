@@ -4,8 +4,9 @@
 // By default USART1 is enabled for G03x/G07x/G0B1/G4/F1/F2/F3/F4/F7/L0/L4/L4+/L5/U5/H7 MCUs
 // Other U(SART) peripherals can be enabled by adding the SPITxDMALinks entries and UART/DMA interrupt handlers
 // RS485 flow control is supported with any GPIO as the Drive Enable pin
-// Note: this library uses relatively newer HAL APIs such as HAL_UARTEx_ReceiveToIdle_DMA and HAL_UARTEx_GetRxEventType
+// Note 1: this library uses relatively newer HAL APIs such as HAL_UARTEx_ReceiveToIdle_DMA and HAL_UARTEx_GetRxEventType
 //       a manual update of STM32Cube firmware package is required for most models
+// Note 2: LPUART peripherals on some low power models may run into overrun(ORE) errors
 
 #include "mbed.h"
 #include <memory>
@@ -32,7 +33,8 @@ public:
     void dma_uninit();
 
     // send data using DMA transfer
-    bool dma_write(uint8_t* data, uint16_t size);
+    bool write(const uint8_t* data, uint16_t size);
+    bool write(const char *data);
 
     // set callback function when new data are received
     // the callback function will be called inside mbed_event_queue()
@@ -67,6 +69,7 @@ private:
     mbed::Callback<void(bool)> rx_callback;
     mbed::Callback<void()> tx_callback;
     std::unique_ptr<DigitalOut> p_direction;
+    EventQueue *shared_queue;
 
 public:
     void on_uart_received(uint16_t size, bool is_idle);

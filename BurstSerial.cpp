@@ -57,7 +57,9 @@ static const SerialDMAInfo SPITxDMALinks[] = {
 #if defined(TARGET_STM32F2) || defined(TARGET_STM32F4) || defined(TARGET_STM32F7)
 static const SerialDMAInfo SPITxDMALinks[] = {
         { 0, UART_1, DMA2, DMA2_Stream7, DMA_CHANNEL_4, DMA2_Stream7_IRQn, 
-            DMA2_Stream5, DMA_CHANNEL_4, DMA2_Stream5_IRQn, USART1_IRQn }
+            DMA2_Stream5, DMA_CHANNEL_4, DMA2_Stream5_IRQn, USART1_IRQn },
+        { 2, UART_3, DMA1, DMA1_Stream3, DMA_CHANNEL_4, DMA1_Stream3_IRQn, 
+            DMA1_Stream1, DMA_CHANNEL_4, DMA1_Stream1_IRQn, USART3_IRQn }
 };
 #endif
 #if defined(STM32L4) && !defined(DMAMUX1)
@@ -93,7 +95,7 @@ static const SerialDMAInfo SPITxDMALinks[] = {
 static BurstSerial *BurstSerialInstances[MAX_SERIAL_COUNT];
 
 BurstSerial::BurstSerial(PinName tx, PinName rx, int bauds, PinName direction)
-    : SerialBase(tx, rx, bauds)
+    : SerialBase(tx, rx, bauds), shared_queue(mbed_event_queue())
 {
     if(direction != PinName::NC)
     {
@@ -305,7 +307,7 @@ void BurstSerial::dma_uninit()
     }
 }
 
-bool BurstSerial::dma_write(uint8_t* data, uint16_t size)
+bool BurstSerial::write(const uint8_t* data, uint16_t size)
 {
     #if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
         uint32_t alignedAddr = (uint32_t)data &  ~0x1F;
@@ -315,7 +317,13 @@ bool BurstSerial::dma_write(uint8_t* data, uint16_t size)
     {
         p_direction->write(1);
     }
-    return HAL_UART_Transmit_DMA(uart_handle, data, size) == HAL_OK;
+    return HAL_UART_Transmit_DMA(uart_handle, (uint8_t*)data, size) == HAL_OK;
+}
+
+bool BurstSerial::write(const char *data)
+{
+    int data_len = strlen(data);
+    return write((const uint8_t*)data, (uint16_t)data_len);
 }
 
 void BurstSerial::on_uart_received(uint16_t size, bool is_idle)
@@ -345,7 +353,7 @@ void BurstSerial::on_uart_received(uint16_t size, bool is_idle)
         rx_buffer_index = size;
         if(rx_callback)
         {
-            mbed_event_queue()->call(rx_callback, is_idle);
+            shared_queue->call(rx_callback, is_idle);
         }
     }
 }
@@ -358,7 +366,7 @@ void BurstSerial::on_uart_tx_complete()
     }
     if(tx_callback)
     {
-        mbed_event_queue()->call(tx_callback);
+        shared_queue->call(tx_callback);
     }
 }
 
@@ -540,6 +548,18 @@ extern "C" void DMA2_Stream5_IRQHandler(void)
 }
 #endif
 
+#if defined(TARGET_STM32F4)
+extern "C" void DMA1_Stream3_IRQHandler(void)
+{
+    BurstSerialInstances[2]->on_dma_interrupt_tx();
+}
+
+extern "C" void DMA1_Stream1_IRQHandler(void)
+{
+    BurstSerialInstances[2]->on_dma_interrupt_rx();
+}
+#endif
+
 extern "C" void USART1_IRQHandler(void)
 {
     BurstSerialInstances[0]->on_uart_interrupt();
@@ -562,6 +582,9 @@ extern "C" void USART3_IRQHandler(void)
 #if defined(STM32G0B1xx)
 extern "C" void USART3_4_5_6_LPUART1_IRQHandler(void)
 {
-    BurstSerialInstances[10]->on_uart_interrupt();
+    if(BurstSerialInstances[10] != nullptr)
+    {
+        BurstSerialInstances[10]->on_uart_interrupt();
+    }
 }
 #endif
